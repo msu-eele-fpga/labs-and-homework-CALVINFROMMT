@@ -22,7 +22,7 @@ begin
 	begin
 		if rising_edge(clk) then
 			if enable then
-				if ((counter -1) = COUNTER_LIMIT) then
+				if ((counter + 1) > COUNTER_LIMIT) then
 					counter 	<= 0;
 					done 		<= true;
 				else

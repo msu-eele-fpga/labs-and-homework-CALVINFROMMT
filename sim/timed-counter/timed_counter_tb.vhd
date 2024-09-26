@@ -25,6 +25,7 @@ signal enable_100ns_tb 		: boolean 	:= false;
 signal done_100ns_tb 		: boolean;
 
 constant HUNDRED_NS 		: time 		:= 100 ns;
+constant TWOHUNDRED40_NS	: time 		:= 240 ns;
 ---------------------------------------------------------
  -- PROCEDURE
 procedure predict_counter_done(
@@ -73,8 +74,18 @@ begin
 			predict_counter_done(HUNDRED_NS, enable_100ns_tb, done_100ns_tb,i);
  -- test whether the counter's done output is correct or not
  		end loop;
-
  -- add other test cases here
+ -- test 240 ns timer when it's enabled
+ 		print("testing 240 ns timer: enabled");
+ 		wait_for_clock_edge(clk_tb);
+ 		enable_100ns_tb <= true;
+
+ -- loop for the number of clock cylces that is equal to the timer's period
+ 		for j in 0 to (TWOHUNDRED40_NS / CLK_PERIOD) loop
+ 			wait_for_clock_edge(clk_tb);
+			predict_counter_done(TWOHUNDRED40_NS, enable_100ns_tb, done_100ns_tb,j);
+ -- test whether the counter's done output is correct or not
+ 		end loop;
 
 
 

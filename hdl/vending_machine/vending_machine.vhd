@@ -18,6 +18,8 @@ type vending_state is(zero_cents, five_cents, ten_cents, fifteen_cents);
 
 signal current_state 	: vending_state;
 signal next_state	: vending_state; 
+signal dispense_v 	: std_ulogic := '0';
+signal amount_v		: natural range 0 to 15 := 0; 
 
 begin
 
@@ -25,8 +27,12 @@ SM: process(clk,rst)
 	begin
 		if(rst = '1') then 
 			current_state <= zero_cents;
+			dispense <= '0';
+			amount <= 0;
 		elsif(rising_edge(clk)) then
 			current_state <= next_state;
+			dispense <= dispense_v;
+			amount <= amount_v;
 		end if;
 	end process;
 	
@@ -34,52 +40,53 @@ NS : process(current_state, nickel, dime)
 	begin
 		case (current_state) is
 			when zero_cents => 
-				if nickel = '1' then 
-					next_state 	<= five_cents;
-					dispense 	<= '0';
-					amount 		<= 5;
-				elsif dime = '1' then
+				if dime = '1' then
 					next_state 	<= ten_cents;
-					dispense 	<= '0';
-					amount 		<= 10;
+					dispense_v 	<= '0';
+					amount_v	 	<= 10;
+				elsif nickel = '1' then 
+					next_state 	<= five_cents;
+					dispense_v 	<= '0';
+					amount_v 	<= 5; 
 				else
 					next_state 	<= zero_cents;
-					dispense 	<= '0';
-					amount 		<= 0;
+					dispense_v 	<= '0';
+					amount_v	 	<= 0;
 				end if;
 			when five_cents =>
-				if nickel = '1' then 
-					next_state 	<= ten_cents;
-					dispense 	<= '0';
-					amount 		<= 10;
-				elsif dime = '1' then
+				if dime = '1' then
 					next_state 	<= fifteen_cents;
-					dispense 	<= '1';
-					amount 		<= 15;
+					dispense_v 	<= '1';
+					amount_v		<= 15;
+				elsif nickel = '1' then 
+					next_state 	<= ten_cents;
+					dispense_v 	<= '0';
+					amount_v	 	<= 10;
 				else
 					next_state 	<= five_cents;
-					dispense 	<= '0';
-					amount 		<= 5;
+					dispense_v 	<= '0';
+					amount_v		<= 5;
 				end if;
 			when ten_cents =>
-				if nickel = '1' then 
+				if dime = '1' then 
 					next_state 	<= fifteen_cents;
-					dispense 	<= '1';
-					amount 		<= 15;
-				elsif dime = '1' then
+					dispense_v 	<= '1';
+					amount_v		<= 15;	
+				elsif nickel = '1' then 
 					next_state 	<= fifteen_cents;
-					dispense 	<= '1';
-					amount 		<= 15;
+					dispense_v 	<= '1';
+					amount_v		<= 15;
 				else
 					next_state 	<= ten_cents;
-					dispense 	<= '0';
-					amount 		<= 10;
+					dispense_v 	<= '0';
+					amount_v		<= 10;
 				end if;
 			when fifteen_cents => 
 				next_state 	<= zero_cents;
-				dispense 	<= '0';
-				amount 		<= 0;
+				dispense_v 	<= '0';
+				amount_v	<= 0;
 			end case;
+
 		end process;
 
 end architecture;

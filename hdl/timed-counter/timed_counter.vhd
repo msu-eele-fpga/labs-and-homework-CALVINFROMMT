@@ -20,17 +20,21 @@ begin
 
 	process(clk)
 	begin
-		if enable then
-			if (counter = COUNTER_LIMIT) then
+		if rising_edge(clk) then
+			if enable then
+				if ((counter -1) = COUNTER_LIMIT) then
+					counter 	<= 0;
+					done 		<= true;
+				else
+					counter 	<= counter + 1;
+					done 		<= false;
+				end if;
+			else 
+				done <= false;
 				counter 	<= 0;
-				done 		<= true;
-			else
-				counter 	<= counter + 1;
-				done 		<= false;
 			end if;
-		else 
+		else
 			done <= false;
-			
 		end if;
 
 	end process;

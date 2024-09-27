@@ -27,7 +27,7 @@ SM: process(clk)
 		begin
 			if(rst = '1') then 
 				current_state <= pulse_waitL;
-				pulse <= '0';
+			
 			elsif(rising_edge(clk)) then
 				current_state <= next_state;	  
 			end if;	

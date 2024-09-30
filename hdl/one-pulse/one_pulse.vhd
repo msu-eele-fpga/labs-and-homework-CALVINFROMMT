@@ -14,53 +14,32 @@ end entity;
 
 architecture one_pulse_arch of one_pulse is 	
 
----- STATE MACHINE VARIABLES
-type pulse_state is (pulse_start, pulse_done, pulse_waitH, pulse_waitL);
-
-signal current_state	: pulse_state := pulse_waitL;
-signal next_state		: pulse_state;
-
+signal pulse_flag			 : std_ulogic := '0';
 
 	begin
-
-SM: process(clk)
+	process(clk)
 		begin
-			if(rst = '1') then 
-				current_state <= pulse_waitL;
-			
-			elsif(rising_edge(clk)) then
-				current_state <= next_state;	  
-			end if;	
-	end process;
+		if rising_edge(clk) then
 
-NS: process(clk, input, current_state)
-	begin
-		if(rst = '1') then
-			next_state <= pulse_waitL;
-		elsif(rising_edge(clk)) then
-		case (current_state) is 
-			when pulse_waitL => 
-				if (input = '1') then 
-					next_state <= pulse_start;
-				else
-					next_state <= pulse_waitL;
-				end if;
-			when pulse_start => 
-				pulse <= '1';
-				next_state <= pulse_done;
-			when pulse_done => 
+			if (rst = '1') then
 				pulse <= '0';
-				if (input = '1') then 
-					next_state <= pulse_waitH;
-				else
-					next_state <= pulse_waitL;
-				end if; 
-			when pulse_waitH => 
-				if (input = '0') then 
-					next_state <= pulse_waitL;
+			elsif (pulse_flag = '1') then
+				if (input = '0') then
+					pulse <= '0';
+					pulse_flag <= '0';
+				elsif (input = '1') then
+					pulse <= '0';
 				end if;
-		end case;
+			elsif(pulse_flag = '0') then
+				if (input = '0') then
+					pulse <= '0';
+				elsif(input = '1') then
+					pulse <= '1';
+					pulse_flag <= '1';
+				end if;
+			end if;
 		end if;
+				
 end process;
 
 end architecture;

@@ -6,7 +6,8 @@ use ieee.std_logic_1164.all;
 entity debouncer is
 	generic(
 		clk_period    	: time 		:= 20 ns;
-		debounce_time 	: time			 );
+--debounce_time 	: time := 100 ms -- for ASYNC
+		debounce_time 	: time	 );
 	port(
         clk       		: in   std_ulogic;
         rst       		: in   std_ulogic;

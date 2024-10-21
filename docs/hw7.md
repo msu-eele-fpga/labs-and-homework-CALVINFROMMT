@@ -47,7 +47,7 @@ Then I used $ cut -d ',' -f 3 log.csv.
 #### P10:
  - $ tail -n 3 gibberish.txt
    
-[Picture of command and output used](assets/Hw7_HTB.png) 
+![Picture of command and output used](assets/Hw7_HTB.png) 
 
 #### P11: 
  - $ tail -n +2 log.csv 
@@ -70,7 +70,7 @@ If we used +1 it would be the whole file.
 #### P14: 
  - $ grep -P -o -i "to \w+" gibberish.txt
    
-[Picture of command and output used](assets/Hw7_SearchC.png)
+![Picture of command and output used](assets/Hw7_SearchC.png)
 
 #### P15:
  - $ grep -c "FPGAs" fpgas.txt

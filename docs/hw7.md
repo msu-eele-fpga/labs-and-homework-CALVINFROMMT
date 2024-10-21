@@ -65,7 +65,7 @@ If we used +1 it would be the whole file.
 #### P13:
  - $ grep -w -n "we" gibberish.txt
 
-![Picture of command and output used](assets\Hw7_SearchB.png)
+![Picture of command and output used](assets/Hw7_SearchB.png)
 
 #### P14: 
  - $ grep -P -o -i "to \w+" gibberish.txt

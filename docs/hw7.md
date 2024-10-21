@@ -9,8 +9,13 @@ Practice Linux CLI tools and chaining multiple commands together.
 #### P2: 
  - $ wc -m lorem-ipsum.txt 
 #### P3: 
+<<<<<<< HEAD
  - $ wc -l lorem-ipsum.txt 
 [Picture of commands and output used](assets\Hw7_counting.png)  
+=======
+ - $ wc -l lorem-ipsum.txt /
+![Picture of commands and output used](assets\Hw7_counting.png) \ 
+>>>>>>> 748165eab22da3d265c514f582c8bcb6cc0a2d6f
 
 ### Sorting
 #### P4: 

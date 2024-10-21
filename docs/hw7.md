@@ -101,7 +101,7 @@ done
 
 #### P19:
 
-[//]: <> ([Picture of command and output used](assets/Hw7_ComposeA.png))
+<!-- [Picture of command and output used](assets/Hw7_ComposeA.png)) -->
 
 #### P20:
  - $ find hdl/ -iname "*.vhd" | wc -l

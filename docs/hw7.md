@@ -108,7 +108,7 @@ $ ls > ls-output.txt
 $ sudo dmesg | grep "CPU"
 ```
 
-[Picture of command and output used](assets/Hw7_ComposeA.png)
+![Picture of command and output used](assets/Hw7_ComposeA.png)
 
 #### P20:
 ```

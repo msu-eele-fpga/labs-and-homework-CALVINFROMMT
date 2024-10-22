@@ -105,7 +105,7 @@ $ ls > ls-output.txt
 
 #### P19:
 ```
-demesg | grep CPU
+$ sudo dmesg | grep "CPU"
 ```
 
 [Picture of command and output used](assets/Hw7_ComposeA.png)

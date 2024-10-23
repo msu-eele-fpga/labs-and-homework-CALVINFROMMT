@@ -4,7 +4,7 @@ In this homework we cobine a sychronizer, debouncer and one pulse.  The sychroni
 
 ## Deliverables
 ### Debounce
-![Picture of Debounce Del](hw6_Debounce_screenshot.png)
+![Picture of Debounce Del](assets/hw6_Debounce_screenshot.png)
 ### One Pulse 
 ![Picture of Debounce Del](hw6_OnePulse_screenshot.png)
 ### Synchronizer

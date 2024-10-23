@@ -1,0 +1,10 @@
+docs/
+hdl/
+LICENSE
+linux/
+ls-output.txt
+quartus/
+README.md
+sim/
+sw/
+utils/

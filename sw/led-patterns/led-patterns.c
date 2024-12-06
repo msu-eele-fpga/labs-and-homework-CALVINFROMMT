@@ -1,159 +1,218 @@
-#include <stdio.h>
+#include <stdio.h>  
+#include <unistd.h>  
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <sys/mman.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <signal.h>
-#include <errno.h>
+#include <string.h>
 
-#define HPS_LED_BASE 0xFF200000  // Example base address for LEDs
-#define HPS_LED_SPAN 0x20        // Span for the LED region
-#define HPS_LED_CONTROL_OFFSET 0 // Offset for LED control register
+const uint32_t HPS_CONTROL_ADDRESS = 0xFF200000;
+const uint32_t LED_ADDRESS = 0xFF200004;
+const uint32_t BASE_PERIOD_ADDRESS = 0xFF200008;
 
-volatile int keep_running = 1;
-int mem_fd = -1;
-void *hps_led_addr = NULL;
+volatile uint32_t *hps_target_virtual_addr; // Global pointer
 
+int verbose_flag = 0;
 
-//
-void handle_sigint(int sig) {
-    printf("\nCtrl-C detected. Resetting hardware to default state...\n");
-    if (hps_led_addr) {
-        *((volatile unsigned int *)hps_led_addr) = 0;  // Reset LEDs
-        munmap(hps_led_addr, HPS_LED_SPAN);
-    }
-    if (mem_fd >= 0) close(mem_fd);
+static volatile int running = 1;
+volatile uint32_t *hps_target_virtual_addr;
+
+void intHandler(int signal) 
+{
+    printf("\nResetting FPGA back to Hardware Control Mode\n");
+    running = 0;
+    *hps_target_virtual_addr = 0x00;
     exit(0);
+    
 }
-// Help message.
-// Used for 
-void print_help() {
-    printf("usage: led_program [-h] [-v] [-p PATTERN TIME [PATTERN TIME ...]] [-f FILE]\n\n");
-    printf("Control LED patterns on the HPS using /dev/mem.\n\n");
-    printf("options:\n");
-    printf("  -h, --help            Show this help message and exit\n");
-    printf("  -v, --verbose         Enable verbose output\n");
-    printf("  -p, --patterns PATTERN TIME [PATTERN TIME ...]\n");
-    printf("                        Specify LED patterns and their display times. Patterns must be\n");
-    printf("                        hexadecimal (e.g., 0x0f), and times are in milliseconds (e.g., 1500).\n");
-    printf("  -f, --file FILE       Read LED patterns and times from a file. Each line should contain\n");
-    printf("                        a pattern and a time separated by a space.\n\n");
-    printf("notes:\n");
-    printf("  - -p and -f are mutually exclusive.\n");
-    printf("  - Each pattern must be followed by a time.\n");
-    printf("  - End program with Ctrl-C, Resetting hardware to default state, HPS_LED_patterns will reset to 0\n");
 
+void new_pattern(volatile uint32_t *led_target_virtual_addr, uint32_t pattern, uint32_t display_time)
+{   
+    *led_target_virtual_addr = pattern;
+    if(verbose_flag == 1)
+    {
+        printf("LED pattern: 0x%x, Display time: %u ms\n", pattern, display_time);
+    }
+    sleep(display_time*0.001); 
 }
-void parse_file(const char *filename, int verbose) {
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        perror("Error opening file");
-        exit(1);
+
+
+int main(int argc, char *argv[])  
+{
+    signal(SIGINT, intHandler);
+
+    const size_t PAGE_SIZE = sysconf(_SC_PAGE_SIZE);
+
+    int fd = open("/dev/mem", O_RDWR | O_SYNC);
+
+    if(fd == -1){
+        fprintf(stderr, "failed to open /dev/mem. \n");
+        //return 1;
     }
 
-    char line[256];
-    while (fgets(line, sizeof(line), file)) {
-        unsigned int pattern;
-        int time;
-        if (sscanf(line, "%x %d", &pattern, &time) != 2) {
-            fprintf(stderr, "Invalid format in file: %s\n", line);
-            fclose(file);
-            exit(1);
-        }
-        if (verbose) {
-            printf("LED pattern = %08x, Display time = %d ms\n", pattern, time);
-        }
-        *((volatile unsigned int *)hps_led_addr) = pattern;
-        usleep(time * 1000);
+    uint32_t page_aligned_addr = HPS_CONTROL_ADDRESS & ~(PAGE_SIZE - 1);
+    /*
+    printf("memory address:\n");
+    printf("----------------------------------------\n");
+    printf("page aligned address = 0x%x\n", page_aligned_addr);
+    */
+
+    uint32_t *page_virtual_addr = (uint32_t *)mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, page_aligned_addr);
+
+    if(page_virtual_addr == MAP_FAILED)
+    {
+    fprintf(stderr, "failed to map memory.\n");
+    //return 1;
+
     }
+    /*
+    printf("page_virtual_addr = %p\n", page_virtual_addr);
+    */
 
-    fclose(file);
-}
+    uint32_t led_offset_in_page = LED_ADDRESS & (PAGE_SIZE - 1);
+    uint32_t hps_offset_in_page = HPS_CONTROL_ADDRESS & (PAGE_SIZE - 1);
+    uint32_t base_offset_in_page = BASE_PERIOD_ADDRESS & (PAGE_SIZE - 1);
+    /*
+    printf("led offset in page = 0x%x\n", led_offset_in_page);
+    printf("hps offset in page = 0x%x\n", hps_offset_in_page);
+    printf("base rate offset in page = 0x%x\n", base_offset_in_page);
+    */
 
-void parse_patterns(int argc, char **argv, int start_idx, int verbose) {
-    for (int i = start_idx; i < argc; i += 2) {
-        if (i + 1 >= argc) {
-            fprintf(stderr, "Error: Each pattern must be followed by a time value.\n");
-            exit(1);
-        }
+    volatile uint32_t *led_target_virtual_addr = page_virtual_addr + led_offset_in_page/sizeof(uint32_t *);
+    hps_target_virtual_addr = page_virtual_addr + hps_offset_in_page/sizeof(uint32_t *);
+    volatile uint32_t *base_target_virtual_addr = page_virtual_addr + base_offset_in_page/sizeof(uint32_t *);
 
-        unsigned int pattern = (unsigned int)strtol(argv[i], NULL, 16);
-        int time = atoi(argv[i + 1]);
+    /*
+    printf("led_targer_virtual_addr = %p\n", led_target_virtual_addr);
+    printf("hps_targer_virtual_addr = %p\n", hps_target_virtual_addr);
+    printf("base targer_virtual_addr = %p\n", base_target_virtual_addr);
+    printf("---------------------------------------------\n");
+    printf("\n");
+    */
 
-        if (verbose) {
-            printf("LED pattern = %08x, Display time = %d ms\n", pattern, time);
-        }
-        *((volatile unsigned int *)hps_led_addr) = pattern;
-        usleep(time * 1000);
-    }
-}
+    
 
-int main(int argc, char *argv[]) {
-    int verbose = 0;
-    int opt;
-    char *file = NULL;
-    int patterns_start = -1;
 
-    signal(SIGINT, handle_sigint);  // Setup Ctrl-C handler
 
-    // Parse command-line arguments
-    while ((opt = getopt(argc, argv, "hvp:f:")) != -1) {
-        switch (opt) {
-            case 'h':
-                print_help();
-                return 0;
-            case 'v':
-                verbose = 1;
+    int opt; 
+
+    
+
+      
+    // put ':' in the starting of the 
+    // string so that program can  
+    //distinguish between '?' and ':'  
+    while((opt = getopt(argc, argv, "hvpf:")) != -1 && running == 1)  
+    {  
+        switch(opt)  
+        {   
+            case 'h':  
+                // Help Section
+                printf("led-patterns [-h] [-v] [-p FOO BAR] [-f FOO]\n");
+                printf("\n");
+                printf("-h      Show this output for help\n");
+                printf("-v      Verbose output\n");
+                printf("            shows LED pattern and Display Time\n");
+                printf("            EX Output: LED pattern = 01010101 Display time = 500 msec\n");
+                printf("-p      Takes input for a new LED Pattern\n");
+                printf("            EX Input: ./led-patterns pattern1 time1 pattern2 time2 pattern3 time3\n");
+                printf("-f      Takes input for a new LED Pattern from file\n"); 
+                break;  
+
+            case 'v':  
+                // Verbose 
+                verbose_flag = 1;
+                // print what the LED pattern is as a binary string and how long it is being displayed for
+                // EX: LED pattern = 01010101 Display time = 500 msec
+                printf("used -v \n");  
+                break;  
+
+            case 'p':  
+                *hps_target_virtual_addr = 0x01;
+
+                // Makes a patterns
+                // intput : pattern1 time1 pattern2 time2 pattern3 time3
+
+                // Parse inputs
+                while(true)
+                {
+                    for(int i = optind; i < argc - 1; i += 2)
+                    {
+                        if (i + 1 < argc) 
+                        {
+                            uint32_t pattern = strtoul(argv[i], NULL, 0);
+                            uint32_t display_time = strtoul(argv[i + 1], NULL, 0);
+                            new_pattern(led_target_virtual_addr, pattern, display_time);
+                        } 
+                        else 
+                        {
+                            printf("Incomplete pattern/time pair, please try again.\n");
+                            return 1;
+                            break;
+                        }
+                    }
+                } 
                 break;
-            case 'p':
-                if (file) {
-                    fprintf(stderr, "Error: -p and -f are mutually exclusive.\n");
+
+            case 'f':  
+                *hps_target_virtual_addr = 0x01;
+            //Input patterns as a file input 
+                FILE *file_ptr = fopen(optarg, "r");
+                if(file_ptr == NULL)
+                {
+                    printf(optarg, "\n");
+                    printf("FILE NOT FOUND\n");
                     return 1;
                 }
-                patterns_start = optind - 1;
-                break;
-            case 'f':
-                if (patterns_start != -1) {
-                    fprintf(stderr, "Error: -p and -f are mutually exclusive.\n");
-                    return 1;
+                else
+                {
+                    printf("File opened successfully : ");
+                    printf(optarg, "\n");
+                    printf("\n");
+
                 }
-                file = optarg;
+
+                uint32_t pattern;
+                uint32_t display_time;
+                char ch[11];
+                
+                while(fgets(ch, sizeof(ch), file_ptr) != NULL)
+                {
+
+                    char *pattern_string = strtok(ch, " ");
+                    char *delay_string = strtok(NULL, " \n");
+
+                    if (pattern_string != NULL && delay_string != NULL) 
+                    {
+
+                        pattern = strtoul(pattern_string, NULL, 16);   
+                        display_time = strtoul(delay_string, NULL, 10);
+
+                        new_pattern(led_target_virtual_addr, pattern, display_time);
+                    }
+                    else
+                    {
+                        printf("Error parsing line. Ensure each line has both pattern and display time.\n");
+                    }
+                }
+                *hps_target_virtual_addr = 0x00;
                 break;
-            default:
-                print_help();
-                return 1;
-        }
-    }
 
-    if (patterns_start == -1 && !file) {
-        fprintf(stderr, "Error: No valid arguments provided.\n");
-        print_help();
-        return 1;
-    }
-
-    // Map /dev/mem
-    mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
-    if (mem_fd < 0) {
-        perror("Error opening /dev/mem");
-        return 1;
-    }
-
-    hps_led_addr = mmap(NULL, HPS_LED_SPAN, PORT_WRITE, MAP_SHARED, mem_fd, HPS_LED_BASE);
-    if (hps_led_addr == MAP_FAILED) {
-        perror("Error mapping /dev/mem");
-        close(mem_fd);
-        return 1;
-    }
-
-    // Process patterns or file
-    if (file) {
-        parse_file(file, verbose);
-    } else {
-        parse_patterns(argc, argv, patterns_start, verbose);
-    }
-
-    // Cleanup
-    munmap(hps_led_addr, HPS_LED_SPAN);
-    close(mem_fd);
-    return 0;
-}
+            case '?':  
+                printf("unknown option: %c\n", optopt); 
+                break;  
+        }  
+    }  
+      
+    // optind is for the extra arguments 
+    // which are not parsed 
+    for(; optind < argc; optind++)
+    {      
+        printf("\nSomethings Broked! What did you do??? \n\n");  
+    } 
+      
+    return 0; 
+} 
